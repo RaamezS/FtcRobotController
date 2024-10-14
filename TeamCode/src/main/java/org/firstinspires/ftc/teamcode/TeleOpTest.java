@@ -32,8 +32,10 @@ package org.firstinspires.ftc.robotcontroller.external.samples;
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit;
@@ -75,7 +77,9 @@ public class TeleOpTest extends LinearOpMode {
     private DcMotor leftBackDrive = null;
     private DcMotor rightFrontDrive = null;
     private DcMotor rightBackDrive = null;
-    private DcMotorEx  armMotor    = null; //the arm motor
+    private DcMotorEx  armMotor = null; //the arm motor
+    private CRServo intake = null; //the active intake servo
+    private Servo wrist = null; //the wrist servo
 
     @Override
     public void runOpMode() {
@@ -114,13 +118,22 @@ public class TeleOpTest extends LinearOpMode {
         If you'd like it to move further, increase that number. If you'd like it to not move
         as far from the starting position, decrease it. */
 
-        final double ARM_COLLAPSED_INTO_ROBOT  = 0;
+        final double ARM_COLLAPSED_INTO_ROBOT  = 90;
         final double ARM_COLLECT               = 250 * ARM_TICKS_PER_DEGREE;
         final double ARM_CLEAR_BARRIER         = 230 * ARM_TICKS_PER_DEGREE;
         final double ARM_SCORE_SPECIMEN        = 160 * ARM_TICKS_PER_DEGREE;
         final double ARM_SCORE_SAMPLE_IN_LOW   = 160 * ARM_TICKS_PER_DEGREE;
         final double ARM_ATTACH_HANGING_HOOK   = 120 * ARM_TICKS_PER_DEGREE;
         final double ARM_WINCH_ROBOT           = 15  * ARM_TICKS_PER_DEGREE;
+
+        /* Variables to store the speed the intake servo should be set at to intake, and deposit game elements. */
+        final double INTAKE_COLLECT    = -1.0;
+        final double INTAKE_OFF        =  0.0;
+        final double INTAKE_DEPOSIT    =  0.5;
+
+        /* Variables to store the positions that the wrist should be set to when folding in, or folding out. */
+        final double WRIST_FOLDED_IN   = 0.8333;
+        final double WRIST_FOLDED_OUT  = 0.5;
 
         /* A number in degrees that the triggers can adjust the arm position by */
         final double FUDGE_FACTOR = 15 * ARM_TICKS_PER_DEGREE;
@@ -144,6 +157,17 @@ public class TeleOpTest extends LinearOpMode {
         armMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         armMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
 
+        /* Define and initialize servos.*/
+        intake = hardwareMap.get(CRServo.class, "intake");
+        wrist  = hardwareMap.get(Servo.class, "wrist");
+
+        /* Make sure that the intake is off, and the wrist is folded in. */
+        intake.setPower(INTAKE_OFF);
+        wrist.setPosition(WRIST_FOLDED_IN);
+
+        /* Send telemetry message to signify robot waiting */
+        telemetry.addLine("Robot Ready.");
+        telemetry.update();
 
 
         // ########################################################################################
@@ -226,6 +250,34 @@ public class TeleOpTest extends LinearOpMode {
             telemetry.addData("Back  left/Right", "%4.2f, %4.2f", leftBackPower, rightBackPower);
             telemetry.update();
 
+
+            /* Here we handle the three buttons that have direct control of the intake speed.
+            These control the continuous rotation servo that pulls elements into the robot,
+            If the user presses A, it sets the intake power to the final variable that
+            holds the speed we want to collect at.
+            If the user presses X, it sets the servo to Off.
+            And if the user presses B it reveres the servo to spit out the element.*/
+
+            /* TECH TIP: If Else statements:
+            We're using an else if statement on "gamepad1.x" and "gamepad1.b" just in case
+            multiple buttons are pressed at the same time. If the driver presses both "a" and "x"
+            at the same time. "a" will win over and the intake will turn on. If we just had
+            three if statements, then it will set the intake servo's power to multiple speeds in
+            one cycle. Which can cause strange behavior. */
+
+            if (gamepad1.a) {
+                intake.setPower(INTAKE_COLLECT);
+
+            }
+            else if (gamepad1.x) {
+                intake.setPower(INTAKE_OFF);
+            }
+            else if (gamepad1.b) {
+                intake.setPower(INTAKE_DEPOSIT);
+            }
+
+
+
             /* Here we implement a set of if else statements to set our arm to different scoring positions.
             We check to see if a specific button is pressed, and then move the arm (and sometimes
             intake and wrist) to match. For example, if we click the right bumper we want the robot
@@ -235,6 +287,8 @@ public class TeleOpTest extends LinearOpMode {
             if(gamepad1.right_bumper){
                 /* This is the intaking/collecting arm position */
                 armPosition = ARM_COLLECT;
+                wrist.setPosition(WRIST_FOLDED_OUT);
+                intake.setPower(INTAKE_COLLECT);
             }
 
             else if (gamepad1.left_bumper){
@@ -254,21 +308,29 @@ public class TeleOpTest extends LinearOpMode {
                     /* This turns off the intake, folds in the wrist, and moves the arm
                     back to folded inside the robot. This is also the starting configuration */
                 armPosition = ARM_COLLAPSED_INTO_ROBOT;
+                intake.setPower(INTAKE_OFF);
+                wrist.setPosition(WRIST_FOLDED_IN);
             }
 
             else if (gamepad1.dpad_right){
                 /* This is the correct height to score SPECIMEN on the HIGH CHAMBER */
                 armPosition = ARM_SCORE_SPECIMEN;
+                wrist.setPosition(WRIST_FOLDED_IN);
             }
 
             else if (gamepad1.dpad_up){
                 /* This sets the arm to vertical to hook onto the LOW RUNG for hanging */
                 armPosition = ARM_ATTACH_HANGING_HOOK;
+                intake.setPower(INTAKE_OFF);
+                wrist.setPosition(WRIST_FOLDED_IN);
             }
 
             else if (gamepad1.dpad_down){
                 /* this moves the arm down to lift the robot up once it has been hooked */
                 armPosition = ARM_WINCH_ROBOT;
+                intake.setPower(INTAKE_OFF);
+                wrist.setPosition(WRIST_FOLDED_IN);
+
             }
 
 
