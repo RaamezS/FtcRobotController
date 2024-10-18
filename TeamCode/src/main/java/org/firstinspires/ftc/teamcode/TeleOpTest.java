@@ -116,9 +116,10 @@ public class TeleOpTest extends LinearOpMode {
         set position of the arm. For example, the ARM_SCORE_SAMPLE_IN_LOW is set to
         160 * ARM_TICKS_PER_DEGREE. This asks the arm to move 160° from the starting position.
         If you'd like it to move further, increase that number. If you'd like it to not move
-        as far from the starting position, decrease it. */
+        as far from the starting position,
+         decrease it. */
 
-        final double ARM_COLLAPSED_INTO_ROBOT  = 90;
+        final double ARM_COLLAPSED_INTO_ROBOT  = 0;
         final double ARM_COLLECT               = 250 * ARM_TICKS_PER_DEGREE;
         final double ARM_CLEAR_BARRIER         = 230 * ARM_TICKS_PER_DEGREE;
         final double ARM_SCORE_SPECIMEN        = 160 * ARM_TICKS_PER_DEGREE;
@@ -131,7 +132,8 @@ public class TeleOpTest extends LinearOpMode {
         final double INTAKE_OFF        =  0.0;
         final double INTAKE_DEPOSIT    =  0.5;
 
-        /* Variables to store the positions that the wrist should be set to when folding in, or folding out. */
+        /* Variables to store the positions that the wrist should be set to when folding in, or folding out.
+        * wrist movement values (moving in or out) */
         final double WRIST_FOLDED_IN   = 0.8333;
         final double WRIST_FOLDED_OUT  = 0.5;
 
@@ -139,23 +141,34 @@ public class TeleOpTest extends LinearOpMode {
         final double FUDGE_FACTOR = 15 * ARM_TICKS_PER_DEGREE;
 
         /* Variables that are used to set the arm to a specific position */
-        double armPosition = (int)ARM_COLLAPSED_INTO_ROBOT;
+        double armPosition = (0);
         double armPositionFudgeFactor;
 
         /* Setting zeroPowerBehavior to BRAKE enables a "brake mode". This causes the motor to slow down
         much faster when it is coasting. This creates a much more controllable drivetrain. As the robot
-        stops much quicker. */
-        armMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        stops much quicker.
+        armMotor.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
+        armMotor.setMode(DcMotorEx.RunMode.RUN_USING_ENCODER);
 
         /*This sets the maximum current that the control hub will apply to the arm before throwing a flag */
-        ((DcMotorEx) armMotor).setCurrentAlert(5, CurrentUnit.AMPS);
+        //((DcMotorEx) armMotor).setCurrentAlert(5, CurrentUnit.AMPS);
 
         /* Before starting the armMotor. We'll make sure the TargetPosition is set to 0.
         Then we'll set the RunMode to RUN_TO_POSITION. And we'll ask it to stop and reset encoder.
-        If you do not have the encoder plugged into this motor, it will not run in this code. */
+        If you do not have the encoder plugged into this motor, it will not run in this code.
+        telemetry.addLine("This robot is running on oct 17");
+        telemetry.update();
+        sleep(2000);
+
         armMotor.setTargetPosition(0);
         armMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         armMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        armMotor.setPower(0.5);
+        while (armMotor.isBusy()) {
+
+            telemetry.addLine("The arm is currently moving.");
+            telemetry.update();
+        } */
 
         /* Define and initialize servos.*/
         intake = hardwareMap.get(CRServo.class, "intake");
@@ -354,7 +367,33 @@ public class TeleOpTest extends LinearOpMode {
             armMotor.setTargetPosition((int) (armPosition + armPositionFudgeFactor));
 
             ((DcMotorEx) armMotor).setVelocity(85);
-            armMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+            armMotor.setMode(DcMotorEx.RunMode.RUN_TO_POSITION);
+
+              /* Setting zeroPowerBehavior to BRAKE enables a "brake mode". This causes the motor to slow down
+        much faster when it is coasting. This creates a much more controllable drivetrain. As the robot
+        stops much quicker. */
+            armMotor.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
+            armMotor.setMode(DcMotorEx.RunMode.RUN_USING_ENCODER);
+
+            /*This sets the maximum current that the control hub will apply to the arm before throwing a flag */
+            //((DcMotorEx) armMotor).setCurrentAlert(5, CurrentUnit.AMPS);
+
+        /* Before starting the armMotor. We'll make sure the TargetPosition is set to 0.
+        Then we'll set the RunMode to RUN_TO_POSITION. And we'll ask it to stop and reset encoder.
+        If you do not have the encoder plugged into this motor, it will not run in this code. */
+            telemetry.addLine("This robot is running on oct 17");
+            telemetry.update();
+
+
+            armMotor.setTargetPosition(0);
+            armMotor.setMode(DcMotorEx.RunMode.RUN_TO_POSITION);
+            armMotor.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
+            armMotor.setPower(0.5);
+            while (armMotor.isBusy()) {
+
+                telemetry.addLine("The arm is currently moving.");
+                telemetry.update();
+            }
 
                    /* TECH TIP: Encoders, integers, and doubles
             Encoders report when the motor has moved a specified angle. They send out pulses which
