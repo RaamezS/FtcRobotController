@@ -7,7 +7,7 @@ import com.qualcomm.robotcore.hardware.CRServo;
 
 @TeleOp(name="FTC Starter Kit Example Robot (INTO THE DEEP)", group="Robot")
 //@Disabled
-public class IntakeServoBugFix1 extends LinearOpMode {
+public class IntakeServoBugFix2 extends LinearOpMode {
 
     /* Declare OpMode members. */
     public CRServo intake = null; // the active intake servo
