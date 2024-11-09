@@ -80,6 +80,7 @@ public class TeleOpTest extends LinearOpMode {
     private DcMotorEx  armMotor = null; //the arm motor
     private CRServo intake = null; //the active intake servo
     private Servo wrist = null; //the wrist servo
+    private DcMotor slide = null; // the linear slide motor
 
     @Override
     public void runOpMode() {
@@ -91,6 +92,7 @@ public class TeleOpTest extends LinearOpMode {
         rightFrontDrive = hardwareMap.get(DcMotor.class, "right_front_drive");
         rightBackDrive = hardwareMap.get(DcMotor.class, "right_back_drive");
         armMotor   = hardwareMap.get(DcMotorEx.class, "left_arm"); //the arm motor
+        slide = hardwareMap.get(DcMotor.class, "Slide");// the linear slide
 
             /* This constant is the number of encoder ticks for each degree of rotation of the arm.
     To find this, we first need to consider the total gear reduction powering our arm.
@@ -103,7 +105,7 @@ public class TeleOpTest extends LinearOpMode {
     counts per rotation of the arm. We divide that by 360 to get the counts per degree. */
         final double ARM_TICKS_PER_DEGREE =
                 28 // number of encoder ticks per rotation of the bare motor
-                        * 250047.0 / 4913.0 // This is the exact gear ratio of the 50.9:1 Yellow Jacket gearbox
+                        * 188.0 // This is the exact gear ratio of the 50.9:1 Yellow Jacket gearbox
                         * 100.0 / 20.0 // This is the external gear reduction, a 20T pinion gear that drives a 100T hub-mount gear
                         * 1/360.0; // we want ticks per degree, not per rotation    /* These constants hold the position that the arm is commanded to run to.
 
@@ -134,8 +136,8 @@ public class TeleOpTest extends LinearOpMode {
 
         /* Variables to store the positions that the wrist should be set to when folding in, or folding out.
         * wrist movement values (moving in or out) */
-        final double WRIST_FOLDED_IN   = 0.8333;
-        final double WRIST_FOLDED_OUT  = 0.5;
+        final double WRIST_FOLDED_IN   = 0.5;
+        final double WRIST_FOLDED_OUT  = 0.18;
 
         /* A number in degrees that the triggers can adjust the arm position by */
         final double FUDGE_FACTOR = 15 * ARM_TICKS_PER_DEGREE;
@@ -144,31 +146,47 @@ public class TeleOpTest extends LinearOpMode {
         double armPosition = (0);
         double armPositionFudgeFactor;
 
+        /*Variables to store different linear slide motor positions.*/
+        final double SLIDE_EXTEND = 1.0;
+        final double SLIDE_OFF =  0.0;
+        final double SLIDE_BACK =  -0.5;
+
+        // Define the limits (adjust these values according to your robot's configuration)
+        final float ARM_MIN_POSITION = 0; // Minimum position of the arm
+        final float ARM_MAX_POSITION = 1000; // Maximum position of the arm (change as needed)
+
         /* Setting zeroPowerBehavior to BRAKE enables a "brake mode". This causes the motor to slow down
         much faster when it is coasting. This creates a much more controllable drivetrain. As the robot
-        stops much quicker.
+        stops much quicker.*/
         armMotor.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
+        armMotor.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
         armMotor.setMode(DcMotorEx.RunMode.RUN_USING_ENCODER);
+        //Sets ZeroPowerBehavior to Brake for linear slide
+        slide.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
 
         /*This sets the maximum current that the control hub will apply to the arm before throwing a flag */
-        //((DcMotorEx) armMotor).setCurrentAlert(5, CurrentUnit.AMPS);
+        ((DcMotorEx) armMotor).setCurrentAlert(8, CurrentUnit.AMPS);
 
         /* Before starting the armMotor. We'll make sure the TargetPosition is set to 0.
         Then we'll set the RunMode to RUN_TO_POSITION. And we'll ask it to stop and reset encoder.
-        If you do not have the encoder plugged into this motor, it will not run in this code.
+        If you do not have the encoder plugged into this motor, it will not run in this code.*/
+
         telemetry.addLine("This robot is running on oct 17");
-        telemetry.update();
         sleep(2000);
+        telemetry.update();
+
 
         armMotor.setTargetPosition(0);
+        armMotor.setPower(0.5);
         armMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         armMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        armMotor.setPower(0.5);
+
         while (armMotor.isBusy()) {
 
             telemetry.addLine("The arm is currently moving.");
             telemetry.update();
-        } */
+        }
 
         /* Define and initialize servos.*/
         intake = hardwareMap.get(CRServo.class, "intake");
@@ -176,7 +194,7 @@ public class TeleOpTest extends LinearOpMode {
 
         /* Make sure that the intake is off, and the wrist is folded in. */
         intake.setPower(INTAKE_OFF);
-        wrist.setPosition(WRIST_FOLDED_IN);
+        //wrist.setPosition(WRIST_FOLDED_IN);
 
         /* Send telemetry message to signify robot waiting */
         telemetry.addLine("Robot Ready.");
@@ -207,6 +225,9 @@ public class TeleOpTest extends LinearOpMode {
 
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
+
+            float currentPosition = armMotor.getCurrentPosition();
+
             double max;
 
             // POV Mode uses left joystick to go forward & strafe, and right joystick to rotate.
@@ -233,6 +254,13 @@ public class TeleOpTest extends LinearOpMode {
                 leftBackPower   /= max;
                 rightBackPower  /= max;
             }
+
+            // **Add speed scaling here**
+            double speedFactor = 0.7; // Set speed factor (0.5 for 50% speed, adjust as needed)
+            leftFrontPower  *= speedFactor;
+            rightFrontPower *= speedFactor;
+            leftBackPower   *= speedFactor;
+            rightBackPower  *= speedFactor;
 
             // This is test code:
             //
@@ -278,9 +306,30 @@ public class TeleOpTest extends LinearOpMode {
             three if statements, then it will set the intake servo's power to multiple speeds in
             one cycle. Which can cause strange behavior. */
 
+            /*if (gamepad1.a) {
+                while (gamepad1.a) {  // Continue while 'A' is held down
+                    intake.setPower(INTAKE_COLLECT);
+
+                    // Check if 'X' is pressed to stop the intake
+                    if (gamepad1.x) {
+                        intake.setPower(INTAKE_OFF);
+                        break;  // Exit the loop when 'X' is pressed
+                    }
+
+                    // Optional: Add a small delay to prevent a tight loop (adjust as needed)
+                    try {
+                        Thread.sleep(1000);  // Sleep for 10 milliseconds
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();  // Handle interruption
+                    }
+                }
+
+                // Ensure the intake is off if 'A' is released
+                intake.setPower(INTAKE_OFF);
+            }*/
+
             if (gamepad1.a) {
                 intake.setPower(INTAKE_COLLECT);
-
             }
             else if (gamepad1.x) {
                 intake.setPower(INTAKE_OFF);
@@ -299,9 +348,9 @@ public class TeleOpTest extends LinearOpMode {
             turns the intake on to the COLLECT mode.*/
             if(gamepad1.right_bumper){
                 /* This is the intaking/collecting arm position */
-                armPosition = ARM_COLLECT;
+                //armPosition = ARM_COLLECT;
                 wrist.setPosition(WRIST_FOLDED_OUT);
-                intake.setPower(INTAKE_COLLECT);
+                //intake.setPower(INTAKE_COLLECT);
             }
 
             else if (gamepad1.left_bumper){
@@ -309,7 +358,9 @@ public class TeleOpTest extends LinearOpMode {
                     Note here that we don't set the wrist position or the intake power when we
                     select this "mode", this means that the intake and wrist will continue what
                     they were doing before we clicked left bumper. */
-                armPosition = ARM_CLEAR_BARRIER;
+                //armPosition = ARM_CLEAR_BARRIER;
+                wrist.setPosition(WRIST_FOLDED_IN);
+                intake.setPower(INTAKE_OFF);
             }
 
             else if (gamepad1.y){
@@ -320,30 +371,33 @@ public class TeleOpTest extends LinearOpMode {
             else if (gamepad1.dpad_left) {
                     /* This turns off the intake, folds in the wrist, and moves the arm
                     back to folded inside the robot. This is also the starting configuration */
-                armPosition = ARM_COLLAPSED_INTO_ROBOT;
-                intake.setPower(INTAKE_OFF);
-                wrist.setPosition(WRIST_FOLDED_IN);
+                //armPosition = ARM_COLLAPSED_INTO_ROBOT;
+                //intake.setPower(INTAKE_OFF);
+                //wrist.setPosition(WRIST_FOLDED_IN);
             }
 
             else if (gamepad1.dpad_right){
                 /* This is the correct height to score SPECIMEN on the HIGH CHAMBER */
-                armPosition = ARM_SCORE_SPECIMEN;
-                wrist.setPosition(WRIST_FOLDED_IN);
+                //armPosition = ARM_SCORE_SPECIMEN;
+                //wrist.setPosition(WRIST_FOLDED_OUT);
             }
 
             else if (gamepad1.dpad_up){
                 /* This sets the arm to vertical to hook onto the LOW RUNG for hanging */
-                armPosition = ARM_ATTACH_HANGING_HOOK;
-                intake.setPower(INTAKE_OFF);
-                wrist.setPosition(WRIST_FOLDED_IN);
+                telemetry.addLine("Robot extending");
+                telemetry.update();
+                slide.setPower(SLIDE_EXTEND);
             }
 
             else if (gamepad1.dpad_down){
                 /* this moves the arm down to lift the robot up once it has been hooked */
-                armPosition = ARM_WINCH_ROBOT;
-                intake.setPower(INTAKE_OFF);
-                wrist.setPosition(WRIST_FOLDED_IN);
+                telemetry.addLine("Robot retracting");
+                telemetry.update();
+                slide.setPower(SLIDE_BACK);
 
+            }
+            else {
+                slide.setPower(SLIDE_OFF);
             }
 
 
@@ -355,32 +409,34 @@ public class TeleOpTest extends LinearOpMode {
             both triggers an equal amount, they cancel and leave the arm at zero. But if one is larger
             than the other, it "wins out". This variable is then multiplied by our FUDGE_FACTOR.
             The FUDGE_FACTOR is the number of degrees that we can adjust the arm by with this function. */
-            armPositionFudgeFactor = FUDGE_FACTOR * (gamepad1.right_trigger + (-gamepad1.left_trigger));
+            // Only apply fudge factor if triggers are pressed beyond a small threshold to avoid continuous movement
+            if (gamepad1.right_trigger > 0.1 || gamepad1.left_trigger > 0.1) {
+                armPositionFudgeFactor = FUDGE_FACTOR * (gamepad1.right_trigger + (-gamepad1.left_trigger));
 
+                // Set the target position with the adjusted fudge factor
+                armMotor.setTargetPosition((int) (armPosition + armPositionFudgeFactor));
 
-            //telemetry.addData("armPosition", armPosition);
-            //telemetry.addData("armPositionFudgeFactor", armPositionFudgeFactor);
+                // Set the velocity and mode
+                ((DcMotorEx) armMotor).setVelocity(200);
+                armMotor.setMode(DcMotorEx.RunMode.RUN_TO_POSITION);
+            } else {
+                // Stop the motor when no triggers are pressed beyond the threshold
+                ((DcMotorEx) armMotor).setVelocity(0);
+            }
 
-            /* Here we set the target position of our arm to match the variable that was selected
-            by the driver.
-            We also set the target velocity (speed) the motor runs at, and use setMode to run it.*/
-            armMotor.setTargetPosition((int) (armPosition + armPositionFudgeFactor));
-
-            ((DcMotorEx) armMotor).setVelocity(85);
-            armMotor.setMode(DcMotorEx.RunMode.RUN_TO_POSITION);
 
               /* Setting zeroPowerBehavior to BRAKE enables a "brake mode". This causes the motor to slow down
         much faster when it is coasting. This creates a much more controllable drivetrain. As the robot
-        stops much quicker. */
+        stops much quicker.
             armMotor.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
             armMotor.setMode(DcMotorEx.RunMode.RUN_USING_ENCODER);
 
-            /*This sets the maximum current that the control hub will apply to the arm before throwing a flag */
+            This sets the maximum current that the control hub will apply to the arm before throwing a flag
             //((DcMotorEx) armMotor).setCurrentAlert(5, CurrentUnit.AMPS);
 
-        /* Before starting the armMotor. We'll make sure the TargetPosition is set to 0.
+         Before starting the armMotor. We'll make sure the TargetPosition is set to 0.
         Then we'll set the RunMode to RUN_TO_POSITION. And we'll ask it to stop and reset encoder.
-        If you do not have the encoder plugged into this motor, it will not run in this code. */
+        If you do not have the encoder plugged into this motor, it will not run in this code.
             telemetry.addLine("This robot is running on oct 17");
             telemetry.update();
 
@@ -393,7 +449,7 @@ public class TeleOpTest extends LinearOpMode {
 
                 telemetry.addLine("The arm is currently moving.");
                 telemetry.update();
-            }
+            }  */
 
                    /* TECH TIP: Encoders, integers, and doubles
             Encoders report when the motor has moved a specified angle. They send out pulses which
@@ -426,4 +482,12 @@ public class TeleOpTest extends LinearOpMode {
             telemetry.addData("arm Encoder: ", armMotor.getCurrentPosition());
             telemetry.update();
         }
-    }}
+
+
+    }
+
+
+
+
+
+}
