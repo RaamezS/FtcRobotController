@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package org.firstinspires.ftc.teamcode;
+package org.firstinspires.ftc.robotcontroller.external.samples;
 
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
@@ -84,7 +84,6 @@ public class TeleOpTest extends LinearOpMode {
 
     @Override
     public void runOpMode() {
-        int currentPosition = armMotor.getCurrentPosition();
 
         // Initialize the hardware variables. Note that the strings used here must correspond
         // to the names assigned during the robot configuration step on the DS or RC devices.
@@ -94,8 +93,6 @@ public class TeleOpTest extends LinearOpMode {
         rightBackDrive = hardwareMap.get(DcMotor.class, "right_back_drive");
         armMotor   = hardwareMap.get(DcMotorEx.class, "left_arm"); //the arm motor
         slide = hardwareMap.get(DcMotor.class, "Slide");// the linear slide
-        armMotor.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
-        armMotor.setMode(DcMotorEx.RunMode.RUN_USING_ENCODER);
 
             /* This constant is the number of encoder ticks for each degree of rotation of the arm.
     To find this, we first need to consider the total gear reduction powering our arm.
@@ -138,7 +135,7 @@ public class TeleOpTest extends LinearOpMode {
         final double INTAKE_DEPOSIT    =  0.5;
 
         /* Variables to store the positions that the wrist should be set to when folding in, or folding out.
-         * wrist movement values (moving in or out) */
+        * wrist movement values (moving in or out) */
         final double WRIST_FOLDED_IN   = 0.5;
         final double WRIST_FOLDED_OUT  = 0.18;
 
@@ -155,8 +152,8 @@ public class TeleOpTest extends LinearOpMode {
         final double SLIDE_BACK =  -0.5;
 
         // Define the limits (adjust these values according to your robot's configuration)
-        final float ARM_MIN_POSITION = 0; // Minimum position of the arm
-        final float ARM_MAX_POSITION = 1000; // Maximum position of the arm (change as needed)
+        //final float ARM_MIN_POSITION = 0; // Minimum position of the arm
+        //final float ARM_MAX_POSITION = 1000; // Maximum position of the arm (change as needed)
 
         /* Setting zeroPowerBehavior to BRAKE enables a "brake mode". This causes the motor to slow down
         much faster when it is coasting. This creates a much more controllable drivetrain. As the robot
@@ -197,7 +194,7 @@ public class TeleOpTest extends LinearOpMode {
 
         /* Make sure that the intake is off, and the wrist is folded in. */
         intake.setPower(INTAKE_OFF);
-        //wrist.setPosition(WRIST_FOLDED_IN);
+        wrist.setPosition(WRIST_FOLDED_OUT);
 
         /* Send telemetry message to signify robot waiting */
         telemetry.addLine("Robot Ready.");
@@ -228,6 +225,8 @@ public class TeleOpTest extends LinearOpMode {
 
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
+
+            float currentPosition = armMotor.getCurrentPosition();
 
             double max;
 
@@ -411,24 +410,18 @@ public class TeleOpTest extends LinearOpMode {
             than the other, it "wins out". This variable is then multiplied by our FUDGE_FACTOR.
             The FUDGE_FACTOR is the number of degrees that we can adjust the arm by with this function. */
             // Only apply fudge factor if triggers are pressed beyond a small threshold to avoid continuous movement
-            // Check if the right trigger is pressed to move the arm up
-            if (gamepad1.right_trigger > 0) {
-                if (currentPosition < ARM_MAX_POSITION) {
-                    armMotor.setPower(1.0); // Move the arm up
-                } else {
-                    armMotor.setPower(0.0); // Stop the arm if it reaches the max position
-                }
-            }
-            // Check if the left trigger is pressed to move the arm down
-            else if (gamepad1.left_trigger > 0) {
-                if (currentPosition > ARM_MIN_POSITION) {
-                    armMotor.setPower(-1.0); // Move the arm down
-                } else {
-                    armMotor.setPower(0.0); // Stop the arm if it reaches the min position
-                }
-            }
-            else {
-                armMotor.setPower(0.0); // Stop the arm if no button is pressed
+            if (gamepad1.right_trigger > 0.1 || gamepad1.left_trigger > 0.1) {
+                armPositionFudgeFactor = FUDGE_FACTOR * (gamepad1.right_trigger + (-gamepad1.left_trigger));
+
+                // Set the target position with the adjusted fudge factor
+                armMotor.setTargetPosition((int) (armPosition + armPositionFudgeFactor));
+
+                // Set the velocity and mode
+                ((DcMotorEx) armMotor).setVelocity(700);
+                armMotor.setMode(DcMotorEx.RunMode.RUN_TO_POSITION);
+            } else {
+                // Stop the motor when no triggers are pressed beyond the threshold
+                ((DcMotorEx) armMotor).setVelocity(0);
             }
 
 
@@ -487,7 +480,6 @@ public class TeleOpTest extends LinearOpMode {
             /* send telemetry to the driver of the arm's current position and target position */
             telemetry.addData("armTarget: ", armMotor.getTargetPosition());
             telemetry.addData("arm Encoder: ", armMotor.getCurrentPosition());
-            telemetry.addData("Arm Position", currentPosition);
             telemetry.update();
         }
 
