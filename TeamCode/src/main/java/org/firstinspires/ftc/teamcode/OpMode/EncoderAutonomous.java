@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -8,6 +9,7 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
 @Autonomous(name = "EncoderAutonomous", group = "Autonomous")
+@Disabled
 public class EncoderAutonomous extends LinearOpMode {
     private DcMotor leftFrontDrive, rightFrontDrive, leftBackDrive, rightBackDrive, linearSlide;
     private CRServo intake;
@@ -31,13 +33,16 @@ public class EncoderAutonomous extends LinearOpMode {
         //Variable for ticks per inch
         ticksPerInch = 45.2937013447;
         armTicksPerDegree = 14.66972 * 5;
-        slideTicksPerInch =
+        slideTicksPerInch = 751.8 / 4.72256;
+
+        linearSlide.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         //reverse the motor to be backwards because of orientation
         leftFrontDrive.setDirection(DcMotor.Direction.FORWARD);
         leftBackDrive.setDirection(DcMotor.Direction.FORWARD);
         rightFrontDrive.setDirection(DcMotor.Direction.REVERSE);
         rightBackDrive.setDirection(DcMotor.Direction.REVERSE);
+        linearSlide.setDirection(DcMotor.Direction.REVERSE);
 
         ResetEncoders();
 
@@ -45,30 +50,75 @@ public class EncoderAutonomous extends LinearOpMode {
         leftBackDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         rightFrontDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         rightBackDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        linearSlide.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
         waitForStart();
         telemetry.addData("LeftFrontDrivePosition",leftFrontDrive.getCurrentPosition());
         //TODO: Put movement code here
         wrist.setPosition(0.18);
-        Move(15, 0.3); //for moving backwards/other directions do negative inches
-        Strafe(34,0.3);
-        Turn(35,0.3); //for rotating to the right do negative degrees
-        Arm(95,0.5);
-        Move(13, 0.3);
-        Slide(1600,-0.9); //negative power is for extending the slide and positive power is for retracting
-        Arm(-5,0.5);
+        Move(15, 0.5); //for moving backwards/other directions do negative inches
+        /*Strafe(34,0.55);
+        Turn(35,0.66); //for rotating to the right do negative degrees
+        Arm(95,0.75);
+        Move(11.5, 0.66);
+        SlideTime(1600,0.9); //positive inches is for extending the slide and positive power is for retracting
+        Arm(-5,0.75);
         Intake(2000, 0.5);
-        Arm(10,0.5);
-        Slide(1600,0.9);
-        Turn(-11.5,0.3);
-        Move(-17,0.3);
-        Strafe(-35,0.3);
-        Arm(-90,0.5);
-        Move(1.5,0.3);
-        Slide(1600,-0.3);
+        Arm(10,0.75);
+        SlideTime(1600,-0.9);
+        Turn(-11.5,0.66);
+        Move(-14,0.4);
+        Strafe(-30.5,0.3);
+        Arm(-94,0.65);
+        Move(2.5,0.66);
+        Slide(5,0.3);
         Intake(3000,-1.0);
-        Arm(90,0.5);
-        Slide(1600,0.3);
+        Arm(90,0.75);
+        Slide(-5,0.3);
+        Strafe(33,0.66);
+        Move(17,0.66);
+        Turn(11.5,0.66);
+        SlideTime(1600,0.9);
+        Arm(-5,0.75);
+        Intake(3000,0.5);
+        Arm(10,0.75);
+        SlideTime(1600,-0.9);
+        Turn(-11.5,0.66);
+        Move(-17,0.66);
+        Strafe(-35.5,0.66);
+        Arm(-94,0.75);
+        Move(11.5,0.66);
+        Slide(7,0.3);
+        Intake(3000,-1.0);
+        Arm(90,0.75);
+        Slide(-7,0.9);
+        Move(-11.5,0.66);
+        Strafe(33,0.66);
+        Move(17,0.66);
+        Turn(11.5,0.66);
+        SlideTime(1600,0.9);
+        Arm(-5,0.75);
+        Intake(3000,0.5);
+        Arm(10,0.75);
+        SlideTime(1600,-0.9);
+        Turn(-11.5,0.66);
+        Move(-17,0.66);
+        Strafe(-35.5,0.66);
+        Arm(-94,0.75);
+        Move(23,0.66);
+        Slide(7,0.3);
+        Intake(3000,-1.0);
+        Arm(90,0.75);
+        Slide(-5,0.3);
+        Move(-23,0.66);
+        Strafe(33,0.66);
+        Move(17,0.66);
+        Turn(11.5,0.66);
+        SlideTime(1600,0.9);
+        Arm(-5,0.75);
+        Intake(3000,0.5);
+        Arm(10,0.75);*/
+
 
         waitUntilMotorsStop();
     }
@@ -238,6 +288,13 @@ public class EncoderAutonomous extends LinearOpMode {
 
         linearSlide.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
     }
+    void SlideTime(int duration, double power) {
+        linearSlide.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        linearSlide.setPower(power);
+        sleep(duration);
+        linearSlide.setPower(0);
+        linearSlide.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+    }
     void ResetMode() {
         leftFrontDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         leftBackDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
@@ -265,5 +322,6 @@ public class EncoderAutonomous extends LinearOpMode {
         rightFrontDrive.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
         rightBackDrive.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
         armMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        linearSlide.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
     }
 }
